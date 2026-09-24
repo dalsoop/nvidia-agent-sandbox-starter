@@ -1,0 +1,41 @@
+services:
+  agent-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nvidia-agent-sandbox
+    hostname: agent-sandbox
+    read_only: true
+    user: "1000:1000"
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /run:rw,noexec,nosuid,size=32m
+      - /home/sandbox/.cache:rw,noexec,nosuid,size=64m
+    volumes:
+      - ./workspace:/workspace:rw
+      - ./config:/workspace/config:ro
+    networks:
+      - sandbox-internal
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          memory: 512M
+
+networks:
+  sandbox-internal:
+    driver: bridge
+    internal: true  # Default-Deny internal network (blocks all external egress/ingress)

@@ -1,0 +1,126 @@
+# ==============================================================================
+# NVIDIA OpenShell Declarative Security Policy
+# Target: Hackathon Agent Sandbox Standard
+# Schema: openshell.nvidia.com/v1alpha1
+# ==============================================================================
+
+apiVersion: openshell.nvidia.com/v1alpha1
+kind: SandboxSecurityPolicy
+metadata:
+  name: hackathon-sandbox-policy
+  version: "1.0.0"
+  namespace: default
+  description: "NVIDIA OpenShell declarative security policy for LLM/Agent execution sandbox"
+
+spec:
+  # ----------------------------------------------------------------------------
+  # Network Security Policy
+  # ----------------------------------------------------------------------------
+  network:
+    default_action: deny
+    egress:
+      default_action: deny
+      allowed_endpoints:
+        - host: api.openai.com
+          ports: [443]
+          protocol: https
+          description: "OpenAI Foundation Models API"
+        - host: api.anthropic.com
+          ports: [443]
+          protocol: https
+          description: "Anthropic Claude Models API"
+        - host: build.nvidia.com
+          ports: [443]
+          protocol: https
+          description: "NVIDIA NIM / NeMo Inference Endpoints"
+        - host: integrate.api.nvidia.com
+          ports: [443]
+          protocol: https
+          description: "NVIDIA Integration & Catalog Gateway"
+        - host: huggingface.co
+          ports: [443]
+          protocol: https
+          description: "HuggingFace Hub & Model Downloads"
+    ingress:
+      default_action: deny
+      allowed_ports: []
+
+  # ----------------------------------------------------------------------------
+  # Filesystem Sandbox Policy
+  # ----------------------------------------------------------------------------
+  filesystem:
+    isolation_mode: chroot_overlayfs
+    read_only_paths:
+      - /etc
+      - /usr
+      - /bin
+      - /sbin
+      - /lib
+      - /lib64
+      - /opt
+    writable_paths:
+      - /workspace
+      - /tmp
+      - /var/tmp
+    denied_paths:
+      - /root
+      - /proc/sys
+      - /sys/firmware
+      - /etc/shadow
+      - /etc/sudoers
+      - /etc/ssh
+
+  # ----------------------------------------------------------------------------
+  # Process & Syscall Security Policy
+  # ----------------------------------------------------------------------------
+  processes:
+    unprivileged_execution: true
+    allow_privilege_escalation: false
+    run_as_user: sandbox
+    run_as_group: sandbox
+    uid: 10001
+    gid: 10001
+    blocked_syscalls:
+      - ptrace
+      - bpf
+      - mount
+      - umount
+      - umount2
+      - pivot_root
+      - reboot
+      - kexec_load
+      - kexec_file_load
+      - init_module
+      - finit_module
+      - delete_module
+      - keyctl
+      - add_key
+      - request_key
+      - personality
+    rlimits:
+      max_cpu_seconds: 300
+      max_memory_mb: 4096
+      max_file_size_mb: 512
+      max_open_files: 1024
+      max_processes: 64
+
+  # ----------------------------------------------------------------------------
+  # L7 Inference Proxy & Guardrails
+  # ----------------------------------------------------------------------------
+  inference_proxy:
+    enabled: true
+    audit_logging: true
+    log_level: info
+    intercept_ports:
+      - 443
+      - 8080
+    model_guardrails:
+      pii_redaction: true
+      prompt_injection_detection: true
+      content_safety: true
+    rate_limiting:
+      requests_per_minute: 60
+      burst: 10
+    token_budget:
+      max_tokens_per_request: 8192
+      max_tokens_per_hour: 500000

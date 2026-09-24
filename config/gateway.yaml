@@ -1,0 +1,120 @@
+# ==============================================================================
+# NVIDIA OpenShell L7 Gateway & Proxy Configuration
+# ==============================================================================
+
+version: "1.0.0"
+
+gateway:
+  host: "0.0.0.0"
+  port: 8080
+  admin_port: 8081
+  ssl_termination: false
+  read_timeout_seconds: 60
+  write_timeout_seconds: 60
+
+proxy:
+  mode: transparent_l7
+  intercept_all_egress: true
+  default_policy: deny
+  dns_filter:
+    enabled: true
+    cache_ttl_seconds: 300
+
+upstreams:
+  - id: nvidia-build
+    host: build.nvidia.com
+    port: 443
+    protocol: https
+    timeout_ms: 60000
+    health_check:
+      path: /healthz
+      interval_seconds: 30
+
+  - id: nvidia-integrate
+    host: integrate.api.nvidia.com
+    port: 443
+    protocol: https
+    timeout_ms: 60000
+
+  - id: openai-api
+    host: api.openai.com
+    port: 443
+    protocol: https
+    timeout_ms: 60000
+
+  - id: anthropic-api
+    host: api.anthropic.com
+    port: 443
+    protocol: https
+    timeout_ms: 60000
+
+  - id: huggingface-hub
+    host: huggingface.co
+    port: 443
+    protocol: https
+    timeout_ms: 120000
+
+routes:
+  - match:
+      path_prefix: /v1/nvidia
+      method: POST
+    upstream_id: nvidia-integrate
+    strip_prefix: /v1/nvidia
+    plugins:
+      - audit_log
+      - pii_masking
+      - prompt_guard
+
+  - match:
+      path_prefix: /v1/openai
+      method: POST
+    upstream_id: openai-api
+    strip_prefix: /v1/openai
+    plugins:
+      - audit_log
+      - pii_masking
+      - prompt_guard
+
+  - match:
+      path_prefix: /v1/anthropic
+      method: POST
+    upstream_id: anthropic-api
+    strip_prefix: /v1/anthropic
+    plugins:
+      - audit_log
+      - pii_masking
+      - prompt_guard
+
+guardrails:
+  pii_redaction:
+    enabled: true
+    entities:
+      - EMAIL_ADDRESS
+      - PHONE_NUMBER
+      - API_KEY
+      - CREDIT_CARD
+      - IP_ADDRESS
+    action: mask
+
+  prompt_injection:
+    enabled: true
+    sensitivity: high
+    action: block
+    block_status_code: 403
+    block_message: "Blocked by NVIDIA OpenShell Security Policy: prompt injection pattern detected."
+
+  audit_logging:
+    enabled: true
+    log_format: json
+    destination: stdout
+    mask_headers:
+      - authorization
+      - x-api-key
+      - cookie
+    include_body: true
+    max_body_bytes: 4096
+
+metrics:
+  enabled: true
+  port: 9090
+  path: /metrics

@@ -1,0 +1,19 @@
+# Sandbox Configuration for NVIDIA Agent
+sandbox:
+  name: "nvidia-agent-sandbox"
+  version: "1.0.0"
+  security:
+    read_only_rootfs: true
+    network_isolation: true # Default-Deny internal network
+    drop_capabilities: ["ALL"]
+    allowed_tmpfs:
+      - path: "/tmp"
+        size: "128m"
+      - path: "/run"
+        size: "32m"
+  execution:
+    timeout_seconds: 300
+    memory_limit: "2G"
+    cpu_limit: "2.0"
+    user: "sandbox"
+    workdir: "/workspace"
