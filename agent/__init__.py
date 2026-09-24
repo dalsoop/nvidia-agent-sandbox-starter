@@ -1,2 +1,3 @@
-"""NVIDIA Agent Sandbox Starter Package"""
-__version__ = "0.1.0"
+"""Minimal tool-calling agent for NVIDIA-hosted models and OpenShell sandboxes."""
+
+__version__ = "0.2.0"
